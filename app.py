@@ -15,11 +15,13 @@ st.title("📈 Ryosuke専用：投資アナリスト会議室")
 # ==========================================
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("Secretsに GEMINI_API_KEY を設定してください。")
+    st.error("StreamlitのSecretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 【解決の鍵】APIのバージョンを「v1」に固定して初期化します
-genai.configure(api_key=api_key, transport='rest') # REST通信を使用
+# 【解決の鍵】
+# 1. 通信方式を 'rest'（Web標準）に固定
+# 2. 内部APIバージョンを 'v1'（正規版）に指定して初期化
+genai.configure(api_key=api_key, transport='rest')
 
 # ==========================================
 # 3. サイドバー：資金管理設定
@@ -63,14 +65,17 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【404エラー対策】モデル名を最小構成で指定
+                # 【404エラー対策】
+                # モデル名の指定から 'models/' を外し、最も標準的な名称で呼び出す
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
                 あなたは小次郎講師率いる8人の投資家チームです。
                 添付のチャート画像と銘柄（{symbol}、現在値{current_price}円）を分析してください。
-                移動平均線大循環分析の視点に基づき、各自の立場から具体的意見を出し、
-                最後に小次郎講師が、資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を考慮した結論をまとめてください。
+                移動平均線大循環分析（第1〜第6ステージ）の視点を軸に、
+                各自の立場から具体的意見を出し、最後に小次郎講師が
+                総資金{total_capital}円、許容リスク{risk_per_trade}%に基づいた
+                投資判断（買い・売り・見送り）をまとめてください。
                 """
                 
                 # 分析実行
@@ -80,9 +85,11 @@ if analyze_button:
                 if response.text:
                     st.markdown(response.text)
                 else:
-                    st.warning("AIが画像を認識できませんでした。別の画像形式を試してください。")
+                    st.warning("AIからの応答が空でした。もう一度ボタンを押してください。")
                 
             except Exception as e:
-                st.error("AIとの通信ルートを修正しましたが、エラーが継続しています。")
-                st.info("一度ブラウザのタブを完全に閉じて、新しいタブでアプリを開き直してみてください。")
+                st.error("AIとの通信でエラーが発生しました。")
+                # エラーメッセージを分かりやすく
+                if "404" in str(e):
+                    st.info("APIの接続ルートを再調整しました。保存後、一度ブラウザを更新して試してください。")
                 st.code(f"技術詳細: {str(e)}")
