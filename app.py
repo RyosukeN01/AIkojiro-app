@@ -13,12 +13,12 @@ st.title("📈 Ryosuke専用：投資アナリスト会議室")
 # ==========================================
 # 2. APIキーの設定
 # ==========================================
-# Secretsに保存されている場合は自動取得、なければサイドバーに入力欄を表示
-api_key = st.secrets.get("GEMINI_API_KEY") or st.sidebar.text_input("Gemini API Key", type="password")
+api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.warning("APIキーを入力、またはStreamlitのSecretsに設定してください。")
+    st.error("Secretsに GEMINI_API_KEY が設定されていません。")
     st.stop()
 
+# 最新の安定した設定で接続
 genai.configure(api_key=api_key)
 
 # ==========================================
@@ -43,48 +43,42 @@ with col1:
 
 with col2:
     st.subheader("🔢 銘柄情報入力")
-    symbol = st.text_input("銘柄コード (例: 7203.T)", placeholder="日本株は末尾に .T を付与")
-    analyze_button = st.button("Team ルパン に依頼する", type="primary")
+    symbol = st.text_input("銘柄コード (例: 7203.T)", value="7203.T")
+    analyze_button = st.button("Team ルパンに依頼する", type="primary")
 
 # ==========================================
-# 5. 分析ロジック（エラー回避処理付き）
+# 5. 分析ロジック
 # ==========================================
 if analyze_button:
-    if not uploaded_file or not symbol:
-        st.error("画像と銘柄コードの両方を入力してください。")
+    if not uploaded_file:
+        st.error("チャート画像をアップロードしてください。")
     else:
         with st.spinner("アナリストたちが会議を行っています..."):
             try:
-                # 株価取得の試行
+                # 株価取得
                 stock = ticker_info.Ticker(symbol)
                 hist = stock.history(period="1d")
+                current_price = hist['Close'].iloc[-1] if not hist.empty else "取得失敗"
                 
-                # データが取得できた場合
-                if not hist.empty:
-                    current_price = hist['Close'].iloc[-1]
+                if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
-                # データが空だった場合（エラーにせず警告を出す）
-                else:
-                    st.warning(f"銘柄コード '{symbol}' の株価データが見つかりませんでした。分析のみ続行します。")
-                    current_price = "不明（チャートから判断）"
 
-                # AI（Gemini）へのプロンプト作成
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                prompt = f"""
-                あなたはルパン率いる8人の投資家チーム（門下生たち）です。
-                添付のチャート画像と銘柄情報（銘柄コード: {symbol}、現在値: {current_price}）を元に分析してください。
+                # 【重要】モデル名の指定を最新の安定版に変更
+                model = genai.GenerativeModel(model_name='gemini-1.5-flash')
                 
-                1. 移動平均線大循環分析の視点（第1ステージ〜第6ステージのどこか）
-                2. 各アナリスト（短期・中期・長期・ファンダなど）からの個別意見
-                3. 最後にルパンが、資金管理（総資金{total_capital}円、許容リスク{risk_per_trade}%）を考慮した具体的な結論をまとめてください。
+                prompt = f"""
+                あなたはルパン率いる8人の投資家チームです。
+                添付のチャート画像と銘柄（{symbol}、現在値{current_price}円）を分析してください。
+                移動平均線大循環分析の視点も含め、各自の立場から具体的意見を出し、
+                最終的にルパンが結論をまとめてください。
                 """
                 
-                # 分析実行
+                # AI分析実行
                 response = model.generate_content([prompt, image])
+                
                 st.markdown("---")
                 st.markdown(response.text)
                 
             except Exception as e:
-                # 想定外のエラーが発生した場合の表示
-                st.error("分析中に技術的なエラーが発生しました。時間をおいて再度お試しください。")
-                st.info(f"詳細エラー: {e}")
+                st.error("AIとの通信でエラーが発生しました。")
+                st.info(f"詳細: {e}")
