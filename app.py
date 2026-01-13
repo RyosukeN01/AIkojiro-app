@@ -18,7 +18,7 @@ if not api_key:
     st.error("Secretsに GEMINI_API_KEY が設定されていません。")
     st.stop()
 
-# 最新の安定した設定で接続
+# 安全な接続設定
 genai.configure(api_key=api_key)
 
 # ==========================================
@@ -43,6 +43,7 @@ with col1:
 
 with col2:
     st.subheader("🔢 銘柄情報入力")
+    # 初期値としてトヨタ(7203.T)を設定
     symbol = st.text_input("銘柄コード (例: 7203.T)", value="7203.T")
     analyze_button = st.button("Team ルパンに依頼する", type="primary")
 
@@ -63,8 +64,8 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【重要】モデル名の指定を最新の安定版に変更
-                model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+                # 【重要】モデル名の指定を 'gemini-1.5-flash' に戻し、model_name引数で明示
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
                 あなたはルパン率いる8人の投資家チームです。
@@ -80,5 +81,6 @@ if analyze_button:
                 st.markdown(response.text)
                 
             except Exception as e:
-                st.error("AIとの通信でエラーが発生しました。")
-                st.info(f"詳細: {e}")
+                # エラーの詳細を表示して原因を特定しやすくする
+                st.error("AIとの通信で問題が発生しました。")
+                st.info(f"技術詳細: {str(e)}")
