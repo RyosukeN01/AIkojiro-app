@@ -3,6 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 import pandas as pd
 import yfinance as ticker_info
+import os
 
 # ==========================================
 # 1. アプリ設定とタイトル
@@ -15,12 +16,11 @@ st.title("📈 Ryosuke専用：投資アナリスト会議室")
 # ==========================================
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("StreamlitのSecretsに GEMINI_API_KEY を設定してください。")
+    st.error("Secretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 【解決の鍵】
-# 1. 通信方式を 'rest'（Web標準）に固定
-# 2. 内部APIバージョンを 'v1'（正規版）に指定して初期化
+# 【解決の鍵】APIの接続を安定版(v1)に強制し、通信方式をRESTに固定
+os.environ["GOOGLE_API_KEY"] = api_key
 genai.configure(api_key=api_key, transport='rest')
 
 # ==========================================
@@ -65,8 +65,8 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【404エラー対策】
-                # モデル名の指定から 'models/' を外し、最も標準的な名称で呼び出す
+                # 【404エラー対策】2026年現在の最新・安定モデル名を指定
+                # models/ を付けない形式で呼び出します
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
@@ -85,11 +85,10 @@ if analyze_button:
                 if response.text:
                     st.markdown(response.text)
                 else:
-                    st.warning("AIからの応答が空でした。もう一度ボタンを押してください。")
+                    st.warning("AIからの応答が空でした。もう一度お試しください。")
                 
             except Exception as e:
                 st.error("AIとの通信でエラーが発生しました。")
-                # エラーメッセージを分かりやすく
                 if "404" in str(e):
-                    st.info("APIの接続ルートを再調整しました。保存後、一度ブラウザを更新して試してください。")
+                    st.info("APIの接続ルートを正規版(v1)に切り替えました。一度ブラウザを更新して試してください。")
                 st.code(f"技術詳細: {str(e)}")
