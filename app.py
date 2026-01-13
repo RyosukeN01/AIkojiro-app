@@ -44,7 +44,7 @@ with col1:
 with col2:
     st.subheader("🔢 銘柄情報入力")
     symbol = st.text_input("銘柄コード (例: 7203.T)", placeholder="日本株は末尾に .T を付与")
-    analyze_button = st.button("小次郎講師チームに依頼する", type="primary")
+    analyze_button = st.button("Team ルパン に依頼する", type="primary")
 
 # ==========================================
 # 5. 分析ロジック（エラー回避処理付き）
@@ -71,12 +71,12 @@ if analyze_button:
                 # AI（Gemini）へのプロンプト作成
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 prompt = f"""
-                あなたは小次郎講師率いる8人の投資家チーム（門下生たち）です。
+                あなたはルパン率いる8人の投資家チーム（門下生たち）です。
                 添付のチャート画像と銘柄情報（銘柄コード: {symbol}、現在値: {current_price}）を元に分析してください。
                 
                 1. 移動平均線大循環分析の視点（第1ステージ〜第6ステージのどこか）
                 2. 各アナリスト（短期・中期・長期・ファンダなど）からの個別意見
-                3. 最後に小次郎講師が、資金管理（総資金{total_capital}円、許容リスク{risk_per_trade}%）を考慮した具体的な結論をまとめてください。
+                3. 最後にルパンが、資金管理（総資金{total_capital}円、許容リスク{risk_per_trade}%）を考慮した具体的な結論をまとめてください。
                 """
                 
                 # 分析実行
