@@ -5,8 +5,8 @@ import pandas as pd
 from PIL import Image
 
 # --- 1. 基本設定とUI ---
-st.set_page_config(page_title="AI小次郎講師・投資判断", layout="wide")
-st.title("📈 AI小次郎講師の投資判断（完全版）")
+st.set_page_config(page_title="AIルパン・投資判断", layout="wide")
+st.title("📈 AIルパンの投資判断（完全版）")
 
 # サイドバー設定
 with st.sidebar:
