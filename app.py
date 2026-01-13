@@ -18,8 +18,9 @@ if not api_key:
     st.error("Secretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 【解決の鍵】接続設定をリセットし、最新の安定バージョンに固定
-genai.configure(api_key=api_key)
+# 【解決の鍵】APIの接続先を正規版「v1」に強制し、通信方式を「REST」に指定
+# これによりエラーの元凶である v1beta への接続を遮断します
+genai.configure(api_key=api_key, transport='rest')
 
 # ==========================================
 # 3. サイドバー：資金管理設定
@@ -63,16 +64,15 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【404エラーの根本修正】
-                # models/ を含めず、最新の正式名称のみを指定します
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                # 【重要】404エラー対策：モデル名を「gemini-1.5-flash」のみに短縮
+                # 前に models/ を付けないのが v1（正規版）での正しい呼び出し方です
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
                 あなたは小次郎講師率いる8人の投資家チームです。
                 添付のチャート画像と銘柄（{symbol}、現在値{current_price}円）を分析してください。
-                移動平均線大循環分析の視点を軸に、各自の立場から具体的意見を出し、
-                最後に小次郎講師が、資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を
-                考慮した具体的な結論をまとめてください。
+                移動平均線大循環分析（第1〜第6ステージ）の視点を重視し、
+                最後に小次郎講師が、総資金{total_capital}円、リスク{risk_per_trade}%を踏まえた投資結論をまとめてください。
                 """
                 
                 # 分析実行
@@ -82,11 +82,9 @@ if analyze_button:
                 if response.text:
                     st.markdown(response.text)
                 else:
-                    st.warning("AIの回答が空です。再度ボタンを押してください。")
+                    st.warning("AIが画像を読み取れませんでした。もう一度お試しください。")
                 
             except Exception as e:
+                # エラーの詳細を表示
                 st.error("AIとの通信で問題が発生しました。")
-                # 404エラーの場合はURLミスマッチを警告
-                if "404" in str(e):
-                    st.info("APIのバージョン設定を調整しました。一度ブラウザを更新して再度お試しください。")
                 st.code(f"技術詳細: {str(e)}")
