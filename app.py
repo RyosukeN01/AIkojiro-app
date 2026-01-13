@@ -69,7 +69,7 @@ if analyze_button:
                     current_price = "不明（チャートから判断）"
 
                 # AI（Gemini）へのプロンプト作成
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 prompt = f"""
                 あなたはルパン率いる8人の投資家チーム（門下生たち）です。
                 添付のチャート画像と銘柄情報（銘柄コード: {symbol}、現在値: {current_price}）を元に分析してください。
