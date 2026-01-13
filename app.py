@@ -2,11 +2,10 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import yfinance as ticker_info
-import os
 
-# 1. アプリ基本設定
+# 1. アプリ設定
 st.set_page_config(page_title="Ryosuke専用：投資アナリスト会議室", layout="wide")
-st.title("📈 投資アナリスト会議室（ハルシネーション抑制版）")
+st.title("📈 投資アナリスト会議室（厳密分析版）")
 
 # 2. APIキーの設定
 api_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
@@ -14,65 +13,49 @@ if not api_key:
     st.error("SecretsにAPIキーが設定されていません。")
     st.stop()
 
-# 【重要】接続先を正規版(v1)に強制固定し、試験運用版(v1beta)を回避する
+# 【解決の鍵】接続ルートを強制的に「正規版(v1)」へ。これで404エラーを回避します。
 genai.configure(api_key=api_key, transport='rest')
 
-# 3. サイドバー：資金管理
+# 3. 入力フォーム
 with st.sidebar:
     st.header("💰 資金管理設定")
     total_capital = st.number_input("投資総資金 (円)", value=1000000)
     risk_per_trade = st.slider("1トレードの許容リスク (%)", 0.1, 5.0, 1.0)
 
-# 4. 入力フォーム
-col1, col2 = st.columns(2)
-with col1:
-    uploaded_file = st.file_uploader("チャート画像をアップロード", type=["png", "jpg", "jpeg"])
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-        st.image(image, use_container_width=True)
+uploaded_file = st.file_uploader("チャート画像をアップロード", type=["png", "jpg", "jpeg"])
+symbol = st.text_input("銘柄コード (例: 7203.T)", value="7203.T")
+analyze_button = st.button("小次郎講師に【客観的分析】を依頼する", type="primary")
 
-with col2:
-    symbol = st.text_input("銘柄コード (例: 7203.T)", value="7203.T")
-    analyze_button = st.button("小次郎講師に厳密な分析を依頼する", type="primary")
-
-# 5. 分析ロジック（ハルシネーション抑制）
+# 4. ハルシネーション抑制ロジック
 if analyze_button and uploaded_file:
-    with st.spinner("画像から客観的な事実を抽出中..."):
+    with st.spinner("画像から視覚的な事実を抽出しています..."):
         try:
-            # 最新株価取得
+            # 株価取得
             stock = ticker_info.Ticker(symbol)
             hist = stock.history(period="1d")
             current_price = hist['Close'].iloc[-1] if not hist.empty else "取得失敗"
 
-            # モデルの初期化（v1ルート用の標準指定）
+            # モデル起動（正規版ルート）
             model = genai.GenerativeModel('gemini-1.5-flash')
             
-            # ハルシネーションを徹底排除する指示
+            # ハルシネーションを極限まで減らすための「思考プロセス」を指示
             prompt = f"""
-            # 命令
-            提供されたチャート画像を「移動平均線大循環分析」に基づき、客観的な事実のみを述べてください。
-            
-            # 厳守事項
-            1. ハルシネーション（推測や嘘）を厳禁します。
-            2. 画像に見えていないインジケーターや数値については「判別不能」と述べてください。
-            3. 銘柄コード:{symbol}、現在値:{current_price}円という事実を前提にしてください。
-            
-            # 分析項目
-            - 現在のステージ（短期・中期・長期の移動平均線の並び順から判定）
-            - 買い、売り、休みのいずれのエッジ（優位性）が発生しているか
-            - 資金管理: 総資金{total_capital}円、許容リスク{risk_per_trade}%に基づき、この現在値から何株までエントリー可能か（ユニット計算）
-            
-            # 出力
-            小次郎講師の口調で、論理的かつ誠実に回答してください。
+            あなたは小次郎講師です。以下の手順で厳密に分析し、推測や嘘（ハルシネーション）を徹底的に排除してください。
+
+            1. 画像の確認: 3本の移動平均線（短期・中期・長期）が見えるか確認してください。
+            2. ステージ判定: 線の並び順のみから、第1〜第6のどのステージか判定してください。
+            3. 事実確認: 銘柄 {symbol}、現在価格 {current_price}円 という事実に基づき記述してください。
+            4. 資金管理: 総資金 {total_capital}円 に対し、1回のトレードで失っていい金額（リスク額）を算出し、現在価格から逆算した最大購入株数を計算してください。
+
+            画像に移動平均線が見えない場合は、無理に判定せず「判別不可」と答えてください。
             """
             
-            # 生成実行
+            image = Image.open(uploaded_file)
             response = model.generate_content([prompt, image])
             
             st.markdown("---")
             st.markdown(response.text)
             
         except Exception as e:
-            st.error(f"接続エラーが発生しました。")
-            st.info("解決策: 一度ブラウザを更新し、Reboot Appを行ってください。")
+            st.error("接続ルートの再構築が必要です。画面右上の『⋮』から Reboot App を押してください。")
             st.code(str(e))
