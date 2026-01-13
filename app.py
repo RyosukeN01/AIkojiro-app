@@ -47,7 +47,7 @@ with col1:
 
 with col2:
     ticker_input = st.text_input("銘柄コードを入力 (例: 7203.T)", placeholder="日本株は末尾に .T を付与")
-    analyze_btn = st.button("小次郎講師チームに依頼する", type="primary")
+    analyze_btn = st.button("ルパンに依頼する", type="primary")
 
 if analyze_btn and uploaded_file and api_key and ticker_input:
     # リアルタイムデータの取得
@@ -63,7 +63,7 @@ if analyze_btn and uploaded_file and api_key and ticker_input:
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
-        あなたは小次郎講師率いる投資エージェントチームです。銘柄 {ticker_input} を分析せよ。
+        あなたはルパン率いる投資エージェントチームです。銘柄 {ticker_input} を分析せよ。
         
         【外部提供データ】
         - 現在値: {market_info['price']:.1f}円
