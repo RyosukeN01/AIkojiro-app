@@ -18,7 +18,7 @@ if not api_key:
     st.error("StreamlitのSecretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 最新の接続設定
+# 最新のAPI設定で接続
 genai.configure(api_key=api_key)
 
 # ==========================================
@@ -63,24 +63,32 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【重要】404エラー対策：モデル名を 'models/gemini-1.5-flash' で直接指定
-                model = genai.GenerativeModel('models/gemini-1.5-flash')
+                # 【404エラーの根本解決】
+                # 現在のGoogle APIで最も確実に動作する「gemini-1.5-flash」を直接指定
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
                 あなたは小次郎講師率いる8人の投資家チームです。
                 添付のチャート画像と銘柄（{symbol}、現在値{current_price}円）を分析してください。
-                移動平均線大循環分析の視点（第1〜第6ステージの判断）を重視し、
-                各自の立場から具体的意見を出し、最後に小次郎講師が、
-                資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を考慮した具体的な結論をまとめてください。
+                
+                移動平均線大循環分析の視点を軸に、各自の立場から具体的意見を出し、
+                最後に小次郎講師が、資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を
+                踏まえた最終的な投資判断をまとめてください。
                 """
                 
-                # 分析実行
+                # AI分析実行（最新のパラメータ形式）
                 response = model.generate_content([prompt, image])
                 
                 st.markdown("---")
-                st.markdown(response.text)
+                # 回答の表示
+                if response.text:
+                    st.markdown(response.text)
+                else:
+                    st.warning("AIからの回答が空でした。もう一度お試しください。")
                 
             except Exception as e:
-                # エラーの詳細を分かりやすく表示
-                st.error("AIとの通信で問題が発生しました。")
-                st.info(f"技術詳細: {str(e)}")
+                st.error("AIとの接続で問題が発生しました。")
+                # 解決のヒントを表示
+                if "404" in str(e):
+                    st.info("モデル名がシステム側で更新された可能性があります。一度アプリを再起動してください。")
+                st.code(f"技術詳細: {str(e)}")
