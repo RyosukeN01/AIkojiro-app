@@ -63,7 +63,7 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【重要】404エラー対策：最新の安定版モデル名を「文字列」で直接指定
+                # 【重要】404エラー対策：モデル名を 'models/gemini-1.5-flash' で直接指定
                 model = genai.GenerativeModel('models/gemini-1.5-flash')
                 
                 prompt = f"""
@@ -81,6 +81,6 @@ if analyze_button:
                 st.markdown(response.text)
                 
             except Exception as e:
-                # エラーが起きた場合は詳細を出力
+                # エラーの詳細を分かりやすく表示
                 st.error("AIとの通信で問題が発生しました。")
-                st.code(f"エラー詳細: {str(e)}")
+                st.info(f"技術詳細: {str(e)}")
