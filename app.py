@@ -15,10 +15,10 @@ st.title("📈 Ryosuke専用：投資アナリスト会議室")
 # ==========================================
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("Secretsに GEMINI_API_KEY が設定されていません。")
+    st.error("StreamlitのSecretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 安全な接続設定
+# 最新の接続設定
 genai.configure(api_key=api_key)
 
 # ==========================================
@@ -43,9 +43,8 @@ with col1:
 
 with col2:
     st.subheader("🔢 銘柄情報入力")
-    # 初期値としてトヨタ(7203.T)を設定
     symbol = st.text_input("銘柄コード (例: 7203.T)", value="7203.T")
-    analyze_button = st.button("Team ルパンに依頼する", type="primary")
+    analyze_button = st.button("小次郎講師チームに依頼する", type="primary")
 
 # ==========================================
 # 5. 分析ロジック
@@ -64,23 +63,24 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【重要】モデル名の指定を 'gemini-1.5-flash' に戻し、model_name引数で明示
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # 【重要】404エラー対策：最新の安定版モデル名を「文字列」で直接指定
+                model = genai.GenerativeModel('models/gemini-1.5-flash')
                 
                 prompt = f"""
-                あなたはルパン率いる8人の投資家チームです。
+                あなたは小次郎講師率いる8人の投資家チームです。
                 添付のチャート画像と銘柄（{symbol}、現在値{current_price}円）を分析してください。
-                移動平均線大循環分析の視点も含め、各自の立場から具体的意見を出し、
-                最終的にルパンが結論をまとめてください。
+                移動平均線大循環分析の視点（第1〜第6ステージの判断）を重視し、
+                各自の立場から具体的意見を出し、最後に小次郎講師が、
+                資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を考慮した具体的な結論をまとめてください。
                 """
                 
-                # AI分析実行
+                # 分析実行
                 response = model.generate_content([prompt, image])
                 
                 st.markdown("---")
                 st.markdown(response.text)
                 
             except Exception as e:
-                # エラーの詳細を表示して原因を特定しやすくする
+                # エラーが起きた場合は詳細を出力
                 st.error("AIとの通信で問題が発生しました。")
-                st.info(f"技術詳細: {str(e)}")
+                st.code(f"エラー詳細: {str(e)}")
