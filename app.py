@@ -1,20 +1,17 @@
 import streamlit as st
-from google import genai
+import requests
+import json
+import base64
 from PIL import Image
+import io
 import yfinance as ticker_info
 
 # 1. アプリ設定
 st.set_page_config(page_title="投資アナリスト会議室", layout="wide")
-st.title("📈 投資アナリスト会議室（正規ルート接続版）")
+st.title("📈 投資アナリスト会議室（404エラー完全回避版）")
 
 # 2. APIキー設定
 api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
-    st.error("APIキーが未設定です。")
-    st.stop()
-
-# 【解決の鍵】最新のClient方式
-client = genai.Client(api_key=api_key)
 
 # 3. 資金管理
 with st.sidebar:
@@ -27,40 +24,44 @@ uploaded_file = st.file_uploader("チャート画像をアップロード", type
 symbol = st.text_input("銘柄コード", value="3315.T")
 analyze_button = st.button("小次郎講師に【厳密な客観分析】を依頼する", type="primary")
 
-# 5. 分析ロジック
-if analyze_button and uploaded_file:
+# 5. 分析ロジック（直通ルート）
+if analyze_button and uploaded_file and api_key:
     with st.spinner("画像から視覚的な事実を抽出中..."):
         try:
-            # 株価取得
+            # 最新株価取得
             stock = ticker_info.Ticker(symbol)
             hist = stock.history(period="1d")
             current_price = hist['Close'].iloc[-1] if not hist.empty else "取得失敗"
 
-            # ハルシネーションを封じる「事実限定プロンプト」
-            prompt = f"""
-            あなたは小次郎講師です。提供されたチャート画像を「移動平均線大循環分析」に基づき、客観的な事実のみを述べてください。
-            【ルール】
-            1. 推測や将来予測（ハルシネーション）を一切禁じます。
-            2. 画像に見える「短期・中期・長期」の3本の線の並び順のみを報告してください。
-            3. 線の上下関係から第1〜第6ステージを機械的に判定してください。
-            4. 銘柄:{symbol}、価格:{current_price}円、総資金:{total_capital}円、リスク:{risk_per_trade}% という数値事実のみでユニット計算してください。
-            """
+            # 画像のエンコード
+            img_byte_arr = io.BytesIO()
+            Image.open(uploaded_file).save(img_byte_arr, format='JPEG')
+            img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+
+            # 【重要】ライブラリを介さず、正規版URL(v1)へ直接POST
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
             
-            image = Image.open(uploaded_file)
+            prompt = f"あなたは小次郎講師です。提供されたチャート画像の移動平均線（短期・中期・長期）の並び順だけを見て、第1〜第6ステージのどれかを客観的に判定してください。ハルシネーション（嘘）は厳禁です。銘柄:{symbol}、価格:{current_price}円、総資金:{total_capital}円、リスク:{risk_per_trade}%として計算してください。"
             
-            # 【重要】モデル名に 'models/' を含めないことで、API v1 を強制使用させます
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=[prompt, image],
-                config={
-                    "temperature": 0.0,  # ハルシネーション抑制
-                }
-            )
-            
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {"inline_data": {"mime_type": "image/jpeg", "data": img_base64}}
+                    ]
+                }],
+                "generationConfig": {"temperature": 0.0}
+            }
+
+            response = requests.post(url, json=payload)
+            result = response.json()
+
             st.markdown("---")
-            st.markdown(response.text)
+            if "candidates" in result:
+                st.markdown(result["candidates"][0]["content"]["parts"][0]["text"])
+            else:
+                st.error("分析に失敗しました。")
+                st.json(result) # エラー詳細を表示
             
         except Exception as e:
-            st.error("接続ルートの再構築が必要です。")
-            st.info("右下の『Manage app』から『Reboot App』を実行してください。")
-            st.code(str(e))
+            st.error(f"エラーが発生しました: {e}")
