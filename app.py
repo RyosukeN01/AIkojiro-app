@@ -1,84 +1,90 @@
 import streamlit as st
 import google.generativeai as genai
-import yfinance as yf
-import pandas as pd
 from PIL import Image
+import pandas as pd
+import yfinance as ticker_info
 
-# --- 1. 基本設定とUI ---
-st.set_page_config(page_title="AIルパン・投資判断", layout="wide")
-st.title("📈 AIルパンの投資判断（完全版）")
+# ==========================================
+# 1. アプリ設定とタイトル
+# ==========================================
+st.set_page_config(page_title="Ryosuke専用：投資アナリスト会議室", layout="wide")
+st.title("📈 Ryosuke専用：投資アナリスト会議室")
 
-# サイドバー設定
+# ==========================================
+# 2. APIキーの設定
+# ==========================================
+# Secretsに保存されている場合は自動取得、なければサイドバーに入力欄を表示
+api_key = st.secrets.get("GEMINI_API_KEY") or st.sidebar.text_input("Gemini API Key", type="password")
+if not api_key:
+    st.warning("APIキーを入力、またはStreamlitのSecretsに設定してください。")
+    st.stop()
+
+genai.configure(api_key=api_key)
+
+# ==========================================
+# 3. サイドバー：資金管理設定
+# ==========================================
 with st.sidebar:
-    st.header("🔑 設定")
-    api_key = st.text_input("Gemini API Key", type="password")
-    
     st.header("💰 資金管理設定")
     total_capital = st.number_input("投資総資金 (円)", value=1000000, step=100000)
-    risk_percent = st.slider("1トレードの許容リスク (%)", 0.1, 2.0, 1.0)
-    
-    st.info("※APIキーは Google AI Studio で無料で取得できます。")
+    risk_per_trade = st.slider("1トレードの許容リスク (%)", 0.1, 5.0, 1.0, 0.1)
 
-# --- 2. データ取得・計算ロジック ---
-def get_stock_data(ticker):
-    try:
-        data = yf.download(ticker, period="3mo", interval="1d")
-        if data.empty: return None
-        
-        # ATRの計算 (14日間)
-        high_low = data['High'] - data['Low']
-        high_close = (data['High'] - data['Close'].shift()).abs()
-        low_close = (data['Low'] - data['Close'].shift()).abs()
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = ranges.max(axis=1)
-        atr = true_range.rolling(14).mean().iloc[-1]
-        
-        current_price = data['Close'].iloc[-1]
-        return {"price": current_price, "atr": atr, "data": data.tail(5)}
-    except:
-        return None
-
-# --- 3. メイン画面 ---
+# ==========================================
+# 4. メイン画面：入力フォーム
+# ==========================================
 col1, col2 = st.columns([1, 1])
+
 with col1:
-    uploaded_file = st.file_uploader("チャート画像をアップロード", type=['png', 'jpg', 'jpeg'])
+    st.subheader("📸 チャート画像")
+    uploaded_file = st.file_uploader("チャート画像をアップロード", type=["png", "jpg", "jpeg"])
     if uploaded_file:
-        st.image(Image.open(uploaded_file), caption='分析対象チャート', use_container_width=True)
+        image = Image.open(uploaded_file)
+        st.image(image, caption="分析対象チャート", use_container_width=True)
 
 with col2:
-    ticker_input = st.text_input("銘柄コードを入力 (例: 7203.T)", placeholder="日本株は末尾に .T を付与")
-    analyze_btn = st.button("ルパンに依頼する", type="primary")
+    st.subheader("🔢 銘柄情報入力")
+    symbol = st.text_input("銘柄コード (例: 7203.T)", placeholder="日本株は末尾に .T を付与")
+    analyze_button = st.button("小次郎講師チームに依頼する", type="primary")
 
-if analyze_btn and uploaded_file and api_key and ticker_input:
-    # リアルタイムデータの取得
-    market_info = get_stock_data(ticker_input)
-    
-    if market_info:
-        # ユニット計算
-        risk_amount = total_capital * (risk_percent / 100)
-        unit_size = int(risk_amount / (market_info['atr'] * 2))
-        
-        # AI分析（Gemini）
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""
-        あなたはルパン率いる投資エージェントチームです。銘柄 {ticker_input} を分析せよ。
-        
-        【外部提供データ】
-        - 現在値: {market_info['price']:.1f}円
-        - ATR(14): {market_info['atr']:.1f}
-        - 1ユニットの推奨株数: {unit_size}株 (総資金{total_capital}円、リスク{risk_percent}%時)
-
-        【分析指示】
-        アナリストA〜Hはそれぞれの専門分野（バリュー、センチメント、大循環、酒田五法、チャネル、MACD/DMI、だまし判定、リスク管理）に基づき、添付画像と上記データを照合して、ハルシネーションを避けて論理的に分析してください。
-        
-        最後にファンドマネージャーXが、エントリー価格、ロスカット値(2ATR下)、デイトレ/スイングの利確目標を具体的に提示してください。
-        """
-        
-        with st.spinner('8人のアナリストが徹底討議中...'):
-            response = model.generate_content([prompt, Image.open(uploaded_file)])
-            st.markdown("---")
-            st.markdown(response.text)
+# ==========================================
+# 5. 分析ロジック（エラー回避処理付き）
+# ==========================================
+if analyze_button:
+    if not uploaded_file or not symbol:
+        st.error("画像と銘柄コードの両方を入力してください。")
     else:
-        st.error("銘柄データの取得に失敗しました。コードが正しいか確認してください。")
+        with st.spinner("アナリストたちが会議を行っています..."):
+            try:
+                # 株価取得の試行
+                stock = ticker_info.Ticker(symbol)
+                hist = stock.history(period="1d")
+                
+                # データが取得できた場合
+                if not hist.empty:
+                    current_price = hist['Close'].iloc[-1]
+                    st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
+                # データが空だった場合（エラーにせず警告を出す）
+                else:
+                    st.warning(f"銘柄コード '{symbol}' の株価データが見つかりませんでした。分析のみ続行します。")
+                    current_price = "不明（チャートから判断）"
+
+                # AI（Gemini）へのプロンプト作成
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"""
+                あなたは小次郎講師率いる8人の投資家チーム（門下生たち）です。
+                添付のチャート画像と銘柄情報（銘柄コード: {symbol}、現在値: {current_price}）を元に分析してください。
+                
+                1. 移動平均線大循環分析の視点（第1ステージ〜第6ステージのどこか）
+                2. 各アナリスト（短期・中期・長期・ファンダなど）からの個別意見
+                3. 最後に小次郎講師が、資金管理（総資金{total_capital}円、許容リスク{risk_per_trade}%）を考慮した具体的な結論をまとめてください。
+                """
+                
+                # 分析実行
+                response = model.generate_content([prompt, image])
+                st.markdown("---")
+                st.markdown(response.text)
+                
+            except Exception as e:
+                # 想定外のエラーが発生した場合の表示
+                st.error("分析中に技術的なエラーが発生しました。時間をおいて再度お試しください。")
+                st.info(f"詳細エラー: {e}")
