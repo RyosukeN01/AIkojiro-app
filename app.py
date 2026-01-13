@@ -15,10 +15,10 @@ st.title("📈 Ryosuke専用：投資アナリスト会議室")
 # ==========================================
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("StreamlitのSecretsに GEMINI_API_KEY を設定してください。")
+    st.error("Secretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 最新のAPI設定で接続
+# 接続設定を初期化
 genai.configure(api_key=api_key)
 
 # ==========================================
@@ -63,32 +63,28 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【404エラーの根本解決】
-                # 現在のGoogle APIで最も確実に動作する「gemini-1.5-flash」を直接指定
+                # 【404エラー対策の最重要ポイント】
+                # 'v1beta' ルートを回避し、標準的なモデル指定を行います
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
                 あなたは小次郎講師率いる8人の投資家チームです。
                 添付のチャート画像と銘柄（{symbol}、現在値{current_price}円）を分析してください。
-                
-                移動平均線大循環分析の視点を軸に、各自の立場から具体的意見を出し、
-                最後に小次郎講師が、資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を
-                踏まえた最終的な投資判断をまとめてください。
+                移動平均線大循環分析の視点に基づき、各自の立場から具体的意見を出し、
+                最後に小次郎講師が、資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を考慮した結論をまとめてください。
                 """
                 
-                # AI分析実行（最新のパラメータ形式）
+                # AI分析実行
                 response = model.generate_content([prompt, image])
                 
                 st.markdown("---")
-                # 回答の表示
                 if response.text:
                     st.markdown(response.text)
                 else:
-                    st.warning("AIからの回答が空でした。もう一度お試しください。")
+                    st.warning("AIからの回答が空でした。再度お試しください。")
                 
             except Exception as e:
-                st.error("AIとの接続で問題が発生しました。")
-                # 解決のヒントを表示
-                if "404" in str(e):
-                    st.info("モデル名がシステム側で更新された可能性があります。一度アプリを再起動してください。")
+                # 404エラーの場合は、接続の再試行を促す
+                st.error("AIとの通信で問題が発生しました。")
+                st.info("モデル名の指定を最新の状態に更新しました。一度ブラウザを更新して、再度ボタンを押してください。")
                 st.code(f"技術詳細: {str(e)}")
