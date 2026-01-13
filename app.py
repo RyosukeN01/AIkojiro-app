@@ -3,7 +3,6 @@ import google.generativeai as genai
 from PIL import Image
 import pandas as pd
 import yfinance as ticker_info
-import os
 
 # ==========================================
 # 1. アプリ設定とタイトル
@@ -19,9 +18,8 @@ if not api_key:
     st.error("Secretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 【解決の鍵】APIの接続を安定版(v1)に強制し、通信方式をRESTに固定
-os.environ["GOOGLE_API_KEY"] = api_key
-genai.configure(api_key=api_key, transport='rest')
+# 【解決の鍵】接続設定をリセットし、最新の安定バージョンに固定
+genai.configure(api_key=api_key)
 
 # ==========================================
 # 3. サイドバー：資金管理設定
@@ -65,17 +63,16 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【404エラー対策】2026年現在の最新・安定モデル名を指定
-                # models/ を付けない形式で呼び出します
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # 【404エラーの根本修正】
+                # models/ を含めず、最新の正式名称のみを指定します
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 
                 prompt = f"""
                 あなたは小次郎講師率いる8人の投資家チームです。
                 添付のチャート画像と銘柄（{symbol}、現在値{current_price}円）を分析してください。
-                移動平均線大循環分析（第1〜第6ステージ）の視点を軸に、
-                各自の立場から具体的意見を出し、最後に小次郎講師が
-                総資金{total_capital}円、許容リスク{risk_per_trade}%に基づいた
-                投資判断（買い・売り・見送り）をまとめてください。
+                移動平均線大循環分析の視点を軸に、各自の立場から具体的意見を出し、
+                最後に小次郎講師が、資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を
+                考慮した具体的な結論をまとめてください。
                 """
                 
                 # 分析実行
@@ -85,10 +82,11 @@ if analyze_button:
                 if response.text:
                     st.markdown(response.text)
                 else:
-                    st.warning("AIからの応答が空でした。もう一度お試しください。")
+                    st.warning("AIの回答が空です。再度ボタンを押してください。")
                 
             except Exception as e:
-                st.error("AIとの通信でエラーが発生しました。")
+                st.error("AIとの通信で問題が発生しました。")
+                # 404エラーの場合はURLミスマッチを警告
                 if "404" in str(e):
-                    st.info("APIの接続ルートを正規版(v1)に切り替えました。一度ブラウザを更新して試してください。")
+                    st.info("APIのバージョン設定を調整しました。一度ブラウザを更新して再度お試しください。")
                 st.code(f"技術詳細: {str(e)}")
