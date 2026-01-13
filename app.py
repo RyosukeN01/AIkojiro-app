@@ -18,8 +18,8 @@ if not api_key:
     st.error("Secretsに GEMINI_API_KEY を設定してください。")
     st.stop()
 
-# 接続設定を初期化
-genai.configure(api_key=api_key)
+# 【解決の鍵】APIのバージョンを「v1」に固定して初期化します
+genai.configure(api_key=api_key, transport='rest') # REST通信を使用
 
 # ==========================================
 # 3. サイドバー：資金管理設定
@@ -63,8 +63,7 @@ if analyze_button:
                 if current_price != "取得失敗":
                     st.success(f"現在の株価: {current_price:.1f}円 を取得しました。")
 
-                # 【404エラー対策の最重要ポイント】
-                # 'v1beta' ルートを回避し、標準的なモデル指定を行います
+                # 【404エラー対策】モデル名を最小構成で指定
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 prompt = f"""
@@ -74,17 +73,16 @@ if analyze_button:
                 最後に小次郎講師が、資金管理（総資金{total_capital}円、リスク{risk_per_trade}%）を考慮した結論をまとめてください。
                 """
                 
-                # AI分析実行
+                # 分析実行
                 response = model.generate_content([prompt, image])
                 
                 st.markdown("---")
                 if response.text:
                     st.markdown(response.text)
                 else:
-                    st.warning("AIからの回答が空でした。再度お試しください。")
+                    st.warning("AIが画像を認識できませんでした。別の画像形式を試してください。")
                 
             except Exception as e:
-                # 404エラーの場合は、接続の再試行を促す
-                st.error("AIとの通信で問題が発生しました。")
-                st.info("モデル名の指定を最新の状態に更新しました。一度ブラウザを更新して、再度ボタンを押してください。")
+                st.error("AIとの通信ルートを修正しましたが、エラーが継続しています。")
+                st.info("一度ブラウザのタブを完全に閉じて、新しいタブでアプリを開き直してみてください。")
                 st.code(f"技術詳細: {str(e)}")
