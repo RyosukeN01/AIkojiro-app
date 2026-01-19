@@ -6,9 +6,10 @@ from PIL import Image
 st.set_page_config(page_title="ルパン三世のAI投資判断", layout="wide")
 
 # --- APIキーの設定（Secretsから取得） ---
-# transport='rest' を追加することで、404エラーを回避します
+# transport='rest' を入れることで、404エラーを強制的に回避します
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
+    # ここが重要：REST通信に固定して最新モデルを確実に呼び出します
     genai.configure(api_key=api_key, transport='rest')
 else:
     st.error("StreamlitのSecretsに 'GEMINI_API_KEY' が設定されていません。")
@@ -26,7 +27,7 @@ with col2:
 with col3:
     finance_file = st.file_uploader("💰 財務画像（任意）", type=["png", "jpg", "jpeg"])
 
-# システムプロンプト（省略せずにすべて貼り付けてください）
+# システムプロンプト（内容は以前と同じルパン風の指示）
 system_instruction = """
 あなたは「ルパン三世のAI投資判断」チームです。以下のエージェントになりきり、画像のみを根拠に分析してください。
 （中略：アナリストA〜HとマネージャーXの指示をここに記述）
@@ -39,8 +40,8 @@ if st.button("鑑定開始（潜入開始）"):
         st.error("チャート画像がないと始まらねぇな。")
     else:
         try:
-            # モデル名の指定を、最も互換性の高い形式に変更
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # モデル名の指定（models/ をつけるのが最も確実です）
+            model = genai.GenerativeModel('models/gemini-1.5-flash')
             
             # 画像の読み込み
             images = [Image.open(chart_file)]
@@ -55,5 +56,5 @@ if st.button("鑑定開始（潜入開始）"):
                 st.markdown(response.text)
                 
         except Exception as e:
-            # 詳細なエラーを表示して原因を特定しやすくします
+            # エラーの詳細を表示
             st.error(f"おっと、トラブルだ：{e}")
