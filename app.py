@@ -5,7 +5,7 @@ from PIL import Image
 # --- 設定 ---
 st.set_page_config(page_title="ルパン三世のAI投資判断", layout="wide")
 
-# APIキーの設定（サイドバーで入力）
+# AIzaSyDciZ27wTS6IGbgKCn5S9GJUd6Xni0DTRE
 with st.sidebar:
     st.title("Settings")
     api_key = st.text_input("Enter Google Gemini API Key:", type="password")
