@@ -37,7 +37,7 @@ if st.button("鑑定開始（潜入開始）"):
         st.error("チャート画像をアップロードしてくれ。")
     else:
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.0-flash')
             images = [Image.open(chart_file)]
             if company_info_file: images.append(Image.open(company_info_file))
             if finance_file: images.append(Image.open(finance_file))
