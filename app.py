@@ -8,8 +8,8 @@ st.set_page_config(page_title="ルパン三世のAI投資判断", layout="wide")
 # APIキーの設定（サイドバーで入力）
 with st.sidebar:
     st.title("Settings")
-    api_key = st.text_input("Enter Google Gemini API Key:", type="password")
-    if api_key:AIzaSyDciZ27wTS6IGbgKCn5S9GJUd6Xni0DTRE
+    api_key = st.text_input("Enter Google Gemini API Key:AIzaSyDciZ27wTS6IGbgKCn5S9GJUd6Xni0DTRE", type="password")
+    if api_key:
         genai.configure(api_key=api_key)
 
 # --- アプリのUI ---
