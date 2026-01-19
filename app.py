@@ -14,17 +14,20 @@ with st.sidebar:
 
 # --- アプリのUI ---
 st.title("💎 ルパン三世のAI投資判断")
-st.caption("チャートと財務諸表から、お宝銘柄を多角的に鑑定します。")
+st.caption("チャート・企業情報・財務の3つの視点から、お宝銘柄を徹底的に鑑定します。")
 
-col1, col2 = st.columns(2)
+# 3カラムに変更
+col1, col2, col3 = st.columns(3)
 with col1:
-    chart_file = st.file_uploader("📈 チャート画像をアップロード", type=["png", "jpg", "jpeg"])
+    chart_file = st.file_uploader("📈 チャート画像をアップロード（必須）", type=["png", "jpg", "jpeg"])
 with col2:
-    finance_file = st.file_uploader("📄 企業情報・財務画像をアップロード", type=["png", "jpg", "jpeg"])
+    company_info_file = st.file_uploader("🏢 企業情報画像をアップロード（任意）", type=["png", "jpg", "jpeg"])
+with col3:
+    finance_file = st.file_uploader("💰 財務画像をアップロード（任意）", type=["png", "jpg", "jpeg"])
 
 # --- システムプロンプトの構築 ---
 system_instruction = """
-あなたは「ルパン三世のAI投資判断」チームです。以下の9名のエージェントになりきって、アップロードされた画像のみを根拠に分析を行ってください。
+あなたは「ルパン三世のAI投資判断」チームです。以下の9名のエージェントになりきって、アップロードされた画像（チャート、企業情報、財務）のみを根拠に分析を行ってください。
 
 【基本原則】
 1. 画像から読み取れる数値・形状のみを根拠とせよ。
@@ -60,20 +63,24 @@ system_instruction = """
 
 if st.button("鑑定開始（潜入開始）"):
     if not api_key:
-        st.error("APIキーを入力してください。")
+        st.error("APIキーを入力してくれ。仕事にならねぇ。")
     elif not chart_file:
-        st.error("チャート画像をアップロードしてください。")
+        st.error("チャート画像がないと始まらねぇな。アップロードしてくれ。")
     else:
         try:
             # モデルの初期化
-            model = genai.GenerativeModel('gemini-1.5-flash') # または gemini-1.5-pro
+            model = genai.GenerativeModel('gemini-1.5-flash')
             
-            # 画像の準備
-            images = [Image.open(chart_file)]
+            # 画像の準備（存在するファイルのみリストに追加）
+            images = []
+            if chart_file:
+                images.append(Image.open(chart_file))
+            if company_info_file:
+                images.append(Image.open(company_info_file))
             if finance_file:
                 images.append(Image.open(finance_file))
             
-            with st.spinner("次元、五ェ門、準備はいいか？不二子にいいところ見せてやるぜ..."):
+            with st.spinner("次元、五ェ門、準備はいいか？3つの情報源から真実を盗み出すぜ..."):
                 # 解析実行
                 response = model.generate_content([system_instruction] + images)
                 
@@ -81,7 +88,7 @@ if st.button("鑑定開始（潜入開始）"):
                 st.markdown(response.text)
                 
         except Exception as e:
-            st.error(f"エラーが発生しました: {e}")
+            st.error(f"おっと、予期せぬトラブルだ: {e}")
 
 # --- フッター ---
 st.sidebar.info("※投資は自己責任です。このAIは画像データに基づいたテクニカル・ファンダメンタル分析をシミュレーションするものです。")
