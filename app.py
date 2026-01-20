@@ -41,7 +41,7 @@ if st.button("お宝鑑定スタート！"):
         try:
             genai.configure(api_key=api_key)
             # 高性能なProモデルを推奨（画像を細かく分析するため）
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
             # 画像の読み込み
             img_chart = Image.open(chart_img)
