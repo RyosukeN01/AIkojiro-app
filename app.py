@@ -1,104 +1,79 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+import time
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ルパン三世のAI投資判断", layout="wide")
 
 st.title("💎 ルパン三世のAI投資判断")
-st.markdown("""
-> **「次元、五ェ門、用意はいいか。最新のAI技術で、お宝銘柄を根こそぎいただくぜ！」**
-> 3枚の画像から、2026年最新のAIアナリスト軍団がハルシネーション（嘘）なしで鑑定するぜ。
----
-""")
+st.markdown("> **「制限（Quota）なんて、俺たちの前じゃただの紙切れ同然よ。」**")
 
-# --- サイドバー：API設定 ---
 with st.sidebar:
-    st.header("🔑 秘密の鍵（API設定）")
-    api_key = st.text_input("Google API Keyを入力してくれ", type="password")
-    st.info("※お前の環境で利用可能な最新モデル（Gemini 2.0/3.0系）を自動選択するぜ。")
+    st.header("🔑 API設定")
+    api_key = st.text_input("Google API Keyを入力", type="password")
+    st.info("※最新モデルを自動選択し、制限時にはリトライを試みるぜ。")
 
-# --- メイン画面：画像アップロードエリア ---
 st.subheader("📸 鑑定用画像を3枚揃えな")
 col1, col2, col3 = st.columns(3)
-
 with col1:
-    chart_img = st.file_uploader("1. 📈 銘柄チャート画像", type=['png', 'jpg', 'jpeg'])
-    if chart_img: st.image(chart_img, caption="チャート", use_container_width=True)
-
+    chart_img = st.file_uploader("📈 チャート", type=['png', 'jpg', 'jpeg'])
 with col2:
-    info_img = st.file_uploader("2. 🏢 企業情報画像", type=['png', 'jpg', 'jpeg'])
-    if info_img: st.image(info_img, caption="企業情報", use_container_width=True)
-
+    info_img = st.file_uploader("🏢 企業情報", type=['png', 'jpg', 'jpeg'])
 with col3:
-    financial_img = st.file_uploader("3. 📄 財務画像", type=['png', 'jpg', 'jpeg'])
-    if financial_img: st.image(financial_img, caption="財務状況", use_container_width=True)
+    financial_img = st.file_uploader("📄 財務状況", type=['png', 'jpg', 'jpeg'])
 
-stock_name = st.text_input("🔢 分析する銘柄名（任意）", placeholder="例：ルパン商事")
+stock_name = st.text_input("🔢 銘柄名（任意）")
 
-# --- 分析実行セクション ---
 if st.button("💰 お宝鑑定スタート！"):
     if not api_key:
-        st.error("APIキーを入力しなきゃ、始まらねぇぜ。")
+        st.error("APIキーを入力しな。")
     elif not (chart_img and info_img and financial_img):
-        st.warning("画像が足りねぇな。3枚揃えてから出直しな。")
+        st.warning("画像が3枚必要だ。")
     else:
         try:
             genai.configure(api_key=api_key)
             
-            # --- モデルの自動選択ロジック ---
-            # リストにあった利用可能な最新モデルを優先的に探す
+            # 利用可能なモデルを取得
             available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
             
-            # 優先順位: 2.0 Flash (安定) > 3.0 Flash (最新) > その他
-            if 'models/gemini-2.0-flash' in available_models:
-                target_model = 'gemini-2.0-flash'
-            elif 'models/gemini-3-flash-preview' in available_models:
-                target_model = 'gemini-3-flash-preview'
-            elif 'models/gemini-2.5-flash' in available_models:
-                target_model = 'gemini-2.5-flash'
-            else:
-                # リストにある最初の生成可能モデルを拾う
-                target_model = available_models[0].replace('models/', '')
+            # 優先して試すモデルのリスト
+            targets = ['models/gemini-2.0-flash', 'models/gemini-2.5-flash', 'models/gemini-3-flash-preview', 'models/gemini-1.5-flash']
+            active_targets = [t for t in targets if t in available_models]
 
-            st.write(f"🔍 使用モデル: {target_model}")
-            model = genai.GenerativeModel(target_model)
+            imgs = [Image.open(chart_img), Image.open(info_img), Image.open(financial_img)]
+            
+            prompt = f"銘柄名：{stock_name}\n各アナリストA-Hの視点とファンドマネージャーXの最終判断を出せ。"
 
-            # 画像の準備
-            img_list = [Image.open(chart_img), Image.open(info_img), Image.open(financial_img)]
-
-            # 専門家集団（プロンプト）
-            prompt = f"""
-あなたは世界最高の投資アナリストチームです。提供された3枚の画像を精密にスキャンし、ハルシネーションを排して以下の銘柄を分析してください。
-銘柄名：{stock_name if stock_name else "画像から判断"}
-
-【分析ルール】
-■アナリストA（バリュー投資家）：財務画像からC/FとB/Sの数字のみで割安性を判断。
-■アナリストB（市場心理）：市場の過熱感と関心を分析。
-■アナリストC（移動平均線大循環分析）：チャートからステージ、トレンド、利確売りを判断。
-■アナリストD（ローソク足・酒田五法）：数本の組み合わせと酒田五法で方向性を予測。
-■アナリストE（チャネル分析）：支持・抵抗線からレンジを特定。
-■アナリストF（MACD・オシレーター）：勢いと過熱感を判断。
-■アナリストG（チャートパターン・だまし）：だましの確率を判断。
-■アナリストH（悲観的リスクマネージャー）：ブラックスワンを突きつけ論理的に反論。
-
----
-### 最終判断：ファンドマネージャーX
-上記を統合し、以下を具体的数値で出力せよ：
-1. 【最終判断】（買うべきか・見送るか、全力か打診か）
-2. 【トレード戦略】（エントリー価格、ロスカット値、デイトレ目標値、スイング目標値）
-3. 【テクニカル指標】（現在のATR、支持線、抵抗線）
-"""
-
-            with st.spinner("次元がスコープを調整中... 五ェ門がデータを斬り分け中..."):
-                response = model.generate_content([prompt] + img_list)
-                st.markdown("---")
-                st.subheader("🕵️‍♂️ 鑑定結果レポート")
-                st.write(response.text)
+            success = False
+            # モデルを順番に試し、429エラーなら待機してリトライ
+            for model_name in active_targets:
+                if success: break
+                
+                st.write(f"🔍 モデル {model_name} で鑑定中...")
+                model = genai.GenerativeModel(model_name)
+                
+                for attempt in range(3): # 最大3回リトライ
+                    try:
+                        response = model.generate_content([prompt] + imgs)
+                        st.markdown("---")
+                        st.subheader("🕵️‍♂️ 鑑定結果レポート")
+                        st.write(response.text)
+                        success = True
+                        break
+                    except Exception as e:
+                        if "429" in str(e):
+                            st.warning(f"混雑してるな...{10 * (attempt + 1)}秒待機してリトライするぜ。")
+                            time.sleep(10 * (attempt + 1))
+                        else:
+                            st.error(f"エラー発生: {e}")
+                            break
+            
+            if not success:
+                st.error("全モデルが制限中だ。少し時間を置いてから（1分後くらい）試してみてくれ。")
 
         except Exception as e:
-            st.error(f"おいおい、トラブルだぜ：{e}")
+            st.error(f"致命的なトラブルだぜ：{e}")
 
-# --- フッター ---
 st.markdown("---")
-st.caption("© 2026 Lupin III AI Investment. ※投資は自己責任。捕まっても知らねえぜ。")
+st.caption("© 2026 Lupin III AI Investment.")
